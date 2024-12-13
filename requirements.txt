@@ -1,0 +1,4 @@
+discord.py==2.7.1        # Discord API wrapper
+pymongo==4.3.3           # MongoDB driver
+pokebase==1.1.1          # Pokebase wrapper (used to interact with PokéAPI)
+python-dotenv==1.0.0     # For loading environment variables from .env file
