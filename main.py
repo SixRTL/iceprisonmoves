@@ -220,6 +220,68 @@ async def nature(ctx, character: str, nature: str):
     await ctx.send(embed=embed)
 
 @bot.command()
+async def change_nature(ctx, character: str, new_nature: str):
+    """Change the nature for a user's character."""
+    valid_natures = [
+        "adamant", "bashful", "bold", "brave", "calm", "careful", "docile", "gentle", "hasty", 
+        "impish", "jolly", "lax", "lonely", "mild", "modest", "naive", "naughty", "quiet", "quirky", 
+        "rash", "relaxed", "sassy", "serious", "timid"
+    ]
+    
+    if new_nature.lower() not in valid_natures:
+        embed = discord.Embed(
+            title="Invalid Nature",
+            description=f"Invalid nature '{new_nature}'. Please choose from the following: {', '.join(valid_natures)}.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Update the nature in the database
+    result = natures_collection.update_one(
+        {"user_id": ctx.author.id, "character_name": character},
+        {"$set": {"nature": new_nature.lower()}}
+    )
+
+    if result.matched_count > 0:
+        embed = discord.Embed(
+            title="Nature Changed Successfully!",
+            description=f"Nature for character '{character}' has been changed to '{new_nature}'.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="Error",
+            description=f"No nature found for character '{character}'. Please register one first using &nature.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.command()
+async def delete_nature(ctx, character: str):
+    """Delete the nature for a user's character."""
+    result = natures_collection.delete_one({
+        "user_id": ctx.author.id,
+        "character_name": character
+    })
+
+    if result.deleted_count > 0:
+        embed = discord.Embed(
+            title="Nature Removed",
+            description=f"Nature has been removed from character '{character}'.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="Error",
+            description=f"No nature found for character '{character}'.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+
+@bot.command()
 async def help(ctx):
     """Show all available commands in a pretty table-like format using Embed."""
     embed = discord.Embed(
@@ -251,6 +313,16 @@ async def help(ctx):
     embed.add_field(
         name="&nature <character> <nature>",
         value="Register a nature for a character. Example: `&nature Pikachu adamant`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&change_nature <character> <new_nature>",
+        value="Change the nature of a character. Example: `&change_nature Pikachu bold`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&delete_nature <character>",
+        value="Delete a character's nature. Example: `&delete_nature Pikachu`.",
         inline=False
     )
 
