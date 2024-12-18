@@ -18,6 +18,7 @@ bot = commands.Bot(command_prefix="&", intents=intents, help_command=None)
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 db = mongo_client["move_bot"]
 moves_collection = db["moves"]
+natures_collection = db["natures"]
 
 # Function to categorize moves
 def categorize_move(damage_class, base_power, move_name):
@@ -185,6 +186,40 @@ async def forget(ctx, character: str, move: str):
         await ctx.send(embed=embed)
 
 @bot.command()
+async def nature(ctx, character: str, nature: str):
+    """Register a nature for a user's character."""
+    valid_natures = [
+        "adamant", "bashful", "bold", "brave", "calm", "careful", "docile", "gentle", "hasty", 
+        "impish", "jolly", "lax", "lonely", "mild", "modest", "naive", "naughty", "quiet", "quirky", 
+        "rash", "relaxed", "sassy", "serious", "timid"
+    ]
+    
+    if nature.lower() not in valid_natures:
+        embed = discord.Embed(
+            title="Invalid Nature",
+            description=f"Invalid nature '{nature}'. Please choose from the following: {', '.join(valid_natures)}.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Save the nature to the database
+    nature_entry = {
+        "user_id": ctx.author.id,
+        "character_name": character,
+        "nature": nature.lower()
+    }
+    natures_collection.insert_one(nature_entry)
+
+    # Create an embed message
+    embed = discord.Embed(
+        title="Nature Registered Successfully!",
+        description=f"Nature '{nature}' has been registered for character '{character}'.",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command()
 async def help(ctx):
     """Show all available commands in a pretty table-like format using Embed."""
     embed = discord.Embed(
@@ -211,6 +246,11 @@ async def help(ctx):
     embed.add_field(
         name="&forget <character> <move>",
         value="Delete a specific move from a character's list. Example: `&forget Pikachu thunderbolt`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&nature <character> <nature>",
+        value="Register a nature for a character. Example: `&nature Pikachu adamant`.",
         inline=False
     )
 
