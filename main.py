@@ -186,7 +186,7 @@ async def forget(ctx, character: str, move: str):
         await ctx.send(embed=embed)
 
 @bot.command()
-async def nature(ctx, character: str, nature: str):
+async def add_nature(ctx, character: str, nature: str):
     """Register a nature for a user's character."""
     valid_natures = [
         "adamant", "bashful", "bold", "brave", "calm", "careful", "docile", "gentle", "hasty", 
@@ -218,6 +218,29 @@ async def nature(ctx, character: str, nature: str):
         color=discord.Color.green()
     )
     await ctx.send(embed=embed)
+
+@bot.command()
+async def nature(ctx, character: str):
+    """Check the current nature of a user's character."""
+    nature_data = natures_collection.find_one({
+        "user_id": ctx.author.id,
+        "character_name": character
+    })
+
+    if nature_data:
+        embed = discord.Embed(
+            title=f"Nature of '{character}'",
+            description=f"The current nature of '{character}' is '{nature_data['nature']}'.",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="No Nature Found",
+            description=f"No nature found for character '{character}'. Please register one using &add_nature.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
 
 @bot.command()
 async def change_nature(ctx, character: str, new_nature: str):
@@ -253,7 +276,7 @@ async def change_nature(ctx, character: str, new_nature: str):
     else:
         embed = discord.Embed(
             title="Error",
-            description=f"No nature found for character '{character}'. Please register one first using &nature.",
+            description=f"No nature found for character '{character}'. Please register one first using &add_nature.",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
@@ -268,8 +291,8 @@ async def delete_nature(ctx, character: str):
 
     if result.deleted_count > 0:
         embed = discord.Embed(
-            title="Nature Removed",
-            description=f"Nature has been removed from character '{character}'.",
+            title="Nature Deleted",
+            description=f"Nature for character '{character}' has been deleted.",
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
@@ -281,53 +304,5 @@ async def delete_nature(ctx, character: str):
         )
         await ctx.send(embed=embed)
 
-@bot.command()
-async def help(ctx):
-    """Show all available commands in a pretty table-like format using Embed."""
-    embed = discord.Embed(
-        title="Command Menu",  # Title updated to "Command Menu"
-        description="Here are all the available commands. When registering moves, use dashes (-) for spaces in move names.",
-        color=discord.Color.blue()
-    )
-
-    embed.add_field(
-        name="&learn <character> <move>",
-        value="Register a move for a character. The move's type will be categorized automatically. Example: `&learn Pikachu thunderbolt`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&custom_move <character> <move> <move_type>",
-        value="Register a custom move for a character with a specified type (Light, Medium, Heavy, Status, Unique). Example: `&custom_move Pikachu thunder-wave status`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&moves <character>",
-        value="List all moves registered for a particular character. Example: `&moves Pikachu`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&forget <character> <move>",
-        value="Delete a specific move from a character's list. Example: `&forget Pikachu thunderbolt`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&nature <character> <nature>",
-        value="Register a nature for a character. Example: `&nature Pikachu adamant`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&change_nature <character> <new_nature>",
-        value="Change the nature of a character. Example: `&change_nature Pikachu bold`.",
-        inline=False
-    )
-    embed.add_field(
-        name="&delete_nature <character>",
-        value="Delete a character's nature. Example: `&delete_nature Pikachu`.",
-        inline=False
-    )
-
-    await ctx.send(embed=embed)
-
-# Run the bot
-bot_token = os.getenv("DISCORD_BOT_TOKEN")
-bot.run(bot_token)
+# Start the bot
+bot.run(os.getenv("DISCORD_TOKEN"))
