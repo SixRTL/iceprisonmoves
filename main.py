@@ -18,7 +18,7 @@ bot = commands.Bot(command_prefix="&", intents=intents, help_command=None)
 mongo_client = MongoClient(os.getenv("MONGO_URI"))
 db = mongo_client["move_bot"]
 moves_collection = db["moves"]
-natures_collection = db["natures"]
+nature_collection = db["natures"]  # For storing nature data
 
 # Function to categorize moves
 def categorize_move(damage_class, base_power, move_name):
@@ -187,29 +187,14 @@ async def forget(ctx, character: str, move: str):
 
 @bot.command()
 async def add_nature(ctx, character: str, nature: str):
-    """Register a nature for a user's character."""
-    valid_natures = [
-        "adamant", "bashful", "bold", "brave", "calm", "careful", "docile", "gentle", "hasty", 
-        "impish", "jolly", "lax", "lonely", "mild", "modest", "naive", "naughty", "quiet", "quirky", 
-        "rash", "relaxed", "sassy", "serious", "timid"
-    ]
-    
-    if nature.lower() not in valid_natures:
-        embed = discord.Embed(
-            title="Invalid Nature",
-            description=f"Invalid nature '{nature}'. Please choose from the following: {', '.join(valid_natures)}.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-
+    """Register a nature for a character."""
     # Save the nature to the database
     nature_entry = {
         "user_id": ctx.author.id,
         "character_name": character,
         "nature": nature.lower()
     }
-    natures_collection.insert_one(nature_entry)
+    nature_collection.insert_one(nature_entry)
 
     # Create an embed message
     embed = discord.Embed(
@@ -217,74 +202,56 @@ async def add_nature(ctx, character: str, nature: str):
         description=f"Nature '{nature}' has been registered for character '{character}'.",
         color=discord.Color.green()
     )
+
     await ctx.send(embed=embed)
 
 @bot.command()
 async def nature(ctx, character: str):
-    """Check the current nature of a user's character."""
-    nature_data = natures_collection.find_one({
-        "user_id": ctx.author.id,
-        "character_name": character
-    })
+    """Check the current nature of a character."""
+    nature_entry = nature_collection.find_one({"user_id": ctx.author.id, "character_name": character})
 
-    if nature_data:
+    if nature_entry:
         embed = discord.Embed(
-            title=f"Nature of '{character}'",
-            description=f"The current nature of '{character}' is '{nature_data['nature']}'.",
+            title=f"Current Nature for '{character}'",
+            description=f"The current nature for '{character}' is {nature_entry['nature'].title()}.",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
     else:
         embed = discord.Embed(
             title="No Nature Found",
-            description=f"No nature found for character '{character}'. Please register one using &add_nature.",
+            description=f"No nature found for character '{character}'.",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
 
 @bot.command()
 async def change_nature(ctx, character: str, new_nature: str):
-    """Change the nature for a user's character."""
-    valid_natures = [
-        "adamant", "bashful", "bold", "brave", "calm", "careful", "docile", "gentle", "hasty", 
-        "impish", "jolly", "lax", "lonely", "mild", "modest", "naive", "naughty", "quiet", "quirky", 
-        "rash", "relaxed", "sassy", "serious", "timid"
-    ]
-    
-    if new_nature.lower() not in valid_natures:
-        embed = discord.Embed(
-            title="Invalid Nature",
-            description=f"Invalid nature '{new_nature}'. Please choose from the following: {', '.join(valid_natures)}.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-
-    # Update the nature in the database
-    result = natures_collection.update_one(
+    """Change the nature of a character."""
+    result = nature_collection.update_one(
         {"user_id": ctx.author.id, "character_name": character},
         {"$set": {"nature": new_nature.lower()}}
     )
 
-    if result.matched_count > 0:
+    if result.modified_count > 0:
         embed = discord.Embed(
             title="Nature Changed Successfully!",
-            description=f"Nature for character '{character}' has been changed to '{new_nature}'.",
+            description=f"The nature of '{character}' has been changed to '{new_nature}'.",
             color=discord.Color.green()
         )
         await ctx.send(embed=embed)
     else:
         embed = discord.Embed(
             title="Error",
-            description=f"No nature found for character '{character}'. Please register one first using &add_nature.",
+            description=f"Failed to change nature for character '{character}'.",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
 
 @bot.command()
 async def delete_nature(ctx, character: str):
-    """Delete the nature for a user's character."""
-    result = natures_collection.delete_one({
+    """Delete the nature of a character."""
+    result = nature_collection.delete_one({
         "user_id": ctx.author.id,
         "character_name": character
     })
@@ -304,5 +271,58 @@ async def delete_nature(ctx, character: str):
         )
         await ctx.send(embed=embed)
 
-# Start the bot
-bot.run(os.getenv("DISCORD_TOKEN"))
+@bot.command()
+async def help(ctx):
+    """Show all available commands in a pretty table-like format using Embed."""
+    embed = discord.Embed(
+        title="Command Menu",  # Title updated to "Command Menu"
+        description="Here are all the available commands. When registering moves, use dashes (-) for spaces in move names.",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="&learn <character> <move>",
+        value="Register a move for a character. The move's type will be categorized automatically. Example: `&learn Pikachu thunderbolt`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&custom_move <character> <move> <move_type>",
+        value="Register a custom move for a character with a specified type (Light, Medium, Heavy, Status, Unique). Example: `&custom_move Pikachu thunder-wave status`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&moves <character>",
+        value="List all moves registered for a particular character. Example: `&moves Pikachu`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&forget <character> <move>",
+        value="Delete a specific move from a character's list. Example: `&forget Pikachu thunderbolt`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&add_nature <character> <nature>",
+        value="Register a nature for a character. Example: `&add_nature Pikachu adamant`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&nature <character>",
+        value="Check the current nature of a character. Example: `&nature Pikachu`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&change_nature <character> <new_nature>",
+        value="Change the nature of a character. Example: `&change_nature Pikachu jolly`.",
+        inline=False
+    )
+    embed.add_field(
+        name="&delete_nature <character>",
+        value="Delete the nature of a character. Example: `&delete_nature Pikachu`.",
+        inline=False
+    )
+
+    await ctx.send(embed=embed)
+
+# Run the bot
+bot_token = os.getenv("DISCORD_BOT_TOKEN")
+bot.run(bot_token)
